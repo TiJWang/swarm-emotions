@@ -32,7 +32,7 @@ function draw() {
   background(220);
 
   for (let robot of robots) {
-    robot.update();
+    robot.update(params, robots);
     robot.display();
   }
 

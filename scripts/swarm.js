@@ -18,7 +18,7 @@ function initializeSwarm() {
     let centerX = random(50, width - 50);
     let centerY = random(50, height - 50);
 
-    let radius = random(20, 50);
+    let radius = random(50, 50);
 
     robots.push(new Robot(centerX, centerY, radius));
   }
