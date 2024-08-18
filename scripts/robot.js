@@ -1,13 +1,13 @@
-// 假设 p5.js 库已经被正确导入并可用
+
 class Robot {
   constructor(x, y, radius) {
-    this.center = createVector(x, y); // 中心点
-    this.radius = radius; // 半径
-    this.angle = random(TWO_PI); // 初始角度
-    this.velocity = createVector(random(-0.1, 0.1), random(-0.1, 0.1)); // 控制速度，较小的值表示慢速移动
+    this.center = createVector(x, y); 
+    this.radius = radius; 
+    this.angle = random(TWO_PI); 
+    this.velocity = createVector(random(-1, 1), random(-1, 1));
     this.position = createVector(x + radius * cos(this.angle), y + radius * sin(this.angle));
-    this.pauseProbability = 0.001; // 设置停顿的概率
-    this.moving = true; // 判断是否在移动
+    this.pauseProbability = 0.001; 
+    this.moving = true; 
   }
 
   // Update the position of the robot based on swarm parameters P1 to P6
@@ -54,7 +54,7 @@ class Robot {
     }
 
     // P4 - Aggregation Tendency
-    if (params.P4 > 0.5) {
+    if (params.P4 > 0) {
         let centerVector = createVector(centerX, centerY);
         let directionToCenter = p5.Vector.sub(centerVector, this.position);
         this.velocity.add(directionToCenter.setMag(0.05 * params.P4));
@@ -88,9 +88,6 @@ class Robot {
     if (this.position.y < 0) this.position.y = height;
   }
 
-
-
-  // 显示机器人
   display() {
     ellipse(this.position.x, this.position.y, 10, 10);
   }

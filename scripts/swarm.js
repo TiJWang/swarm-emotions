@@ -40,7 +40,7 @@ function submitFeedback() {
     let reward = getUserFeedback();
     let action = chooseAction(state); // Choose the best action based on the current state
     let nextState = action.map((value, index) => {
-      if (reward >= 90) {
+      if (reward >= 55) {
         return state[index] + 0.1 * (value - state[index]);
       }
       return value;
