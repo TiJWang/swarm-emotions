@@ -14,10 +14,18 @@ let trainingCycles = 10000;
 function initializeSwarm() {
   robots = [];
   for (let i = 0; i < numRobots; i++) {
-    robots.push(new Robot(random(width), random(height)));
+    // random circle center
+    let centerX = random(50, width - 50);
+    let centerY = random(50, height - 50);
+
+    let radius = random(20, 50);
+
+    robots.push(new Robot(centerX, centerY, radius));
   }
-  console.log('Swarm initialized with parameters:', params);
+  console.log('Swarm initialized with ' + numRobots + ' robots.');
 }
+
+
 
 // Function to get user feedback from the slider
 function getUserFeedback() {
