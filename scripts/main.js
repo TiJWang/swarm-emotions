@@ -13,6 +13,15 @@ function setup() {
   let feedbackLabel = createDiv('Feedback: How sad is this representation?');
   feedbackLabel.position(10, height - 30);
 
+  // Create a div to display the slider's value
+  let sliderValueDisplay = createDiv(`Value: ${feedbackSlider.value()}`);
+  sliderValueDisplay.position(10, height + 40);
+
+  // Update the value display when the slider is moved
+  feedbackSlider.input(() => {
+    sliderValueDisplay.html(`Value: ${feedbackSlider.value()}`);
+  });
+
   let submitButton = createButton('Submit Feedback');
   submitButton.position(10, height + 60);
   submitButton.mousePressed(submitFeedback);
@@ -27,6 +36,7 @@ function setup() {
 
   console.log('Initial Parameters:', params);
 }
+
 
 function draw() {
   background(220);
@@ -47,27 +57,48 @@ model.add(tf.layers.dense({ units: 24, activation: 'relu' }));
 model.add(tf.layers.dense({ units: 6, activation: 'linear' }));
 model.compile({ optimizer: 'adam', loss: 'meanSquaredError' });
 
+let epsilon = 1.0; // 初始ε值
+let epsilonMin = 0.01; // ε的最小值
+let epsilonDecay = 0.995; // 每个训练周期ε的衰减系数
+
 function chooseAction(state) {
-  return tf.tidy(() => {
-    const input = tf.tensor2d([state]);
-    const prediction = model.predict(input);
-    const action = prediction.dataSync();
-    console.log('Chosen action based on current state:', action);
-    return action;
-  });
+  if (Math.random() < epsilon) {
+    // 探索：选择随机动作
+    return Array.from({ length: 6 }, () => Math.random() * 100); // 假设动作的范围是0到100
+  } else {
+    // 利用：选择最优动作
+    return tf.tidy(() => {
+      const input = tf.tensor2d([state]); // Convert the state to a 2D tensor
+      const prediction = model.predict(input); // Predict the Q-values for the given state
+      const action = prediction.dataSync(); // Return the predicted values as a JavaScript array
+      console.log('Chosen action based on current state:', action);
+      return action;
+    });
+  }
 }
 
 function trainModel(state, action, reward, nextState) {
-  const target = reward + 0.95 * Math.max(...chooseAction(nextState));
-  const targetVector = chooseAction(state);
-  targetVector[targetVector.indexOf(Math.max(...targetVector))] = target;
+  const target = reward + 0.95 * Math.max(...chooseAction(nextState)); // Q-learning update rule
+  const targetVector = chooseAction(state); // Predict the current Q-values
+  targetVector[targetVector.indexOf(Math.max(...targetVector))] = target; // Update the Q-value for the chosen action with the target value
 
   const input = tf.tensor2d([state]);
   const targetTensor = tf.tensor2d([targetVector]);
 
   model.fit(input, targetTensor, { epochs: 1 }).then(() => {
-    input.dispose();
-    targetTensor.dispose();
+    input.dispose(); // Dispose of the input tensor to free memory
+    targetTensor.dispose(); // Dispose of the target tensor to free memory
     console.log('Model trained with state:', state, 'action:', action, 'reward:', reward, 'next state:', nextState);
   });
+
+  // 衰减ε值
+  if (reward < 50 && epsilon > epsilonMin) {
+    epsilon *= (epsilonDecay * 0.9); // 更快速地减少 epsilon
+  } else if (reward >= 70) { // 高分反馈
+    epsilon = Math.max(epsilon * 0.5, epsilonMin); // 快速降低 epsilon，减少探索
+  } else if (epsilon > epsilonMin) {
+      epsilon *= epsilonDecay; // 正常衰减
+  }
+
 }
+
