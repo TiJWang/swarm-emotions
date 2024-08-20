@@ -52,14 +52,18 @@ function draw() {
 
 // Set up the neural network model using TensorFlow.js
 const model = tf.sequential();
-model.add(tf.layers.dense({ units: 24, inputShape: [6], activation: 'relu' }));
-model.add(tf.layers.dense({ units: 24, activation: 'relu' }));
+model.add(tf.layers.dense({ units: 64, inputShape: [6], activation: 'relu' }));
+model.add(tf.layers.dropout({ rate: 0.2 })); // Dropout层，防止过拟合
+model.add(tf.layers.dense({ units: 64, activation: 'relu' }));
+model.add(tf.layers.dropout({ rate: 0.2 })); // 再次添加Dropout层
+model.add(tf.layers.dense({ units: 32, activation: 'relu' }));
 model.add(tf.layers.dense({ units: 6, activation: 'linear' }));
-model.compile({ optimizer: 'adam', loss: 'meanSquaredError' });
+model.compile({ optimizer: tf.train.adam(0.001), loss: 'meanSquaredError' }); // 将学习率设置为0.001
+
 
 let epsilon = 1.0; // 初始ε值
 let epsilonMin = 0.01; // ε的最小值
-let epsilonDecay = 0.995; // 每个训练周期ε的衰减系数
+let epsilonDecay = 0.99; // 每个训练周期ε的衰减系数
 
 function chooseAction(state) {
   if (Math.random() < epsilon) {
@@ -93,9 +97,9 @@ function trainModel(state, action, reward, nextState) {
 
   // 衰减ε值
   if (reward < 50 && epsilon > epsilonMin) {
-    epsilon *= (epsilonDecay * 0.9); // 更快速地减少 epsilon
+    epsilon *= (epsilonDecay * 0.6); // 更快速地减少 epsilon
   } else if (reward >= 70) { // 高分反馈
-    epsilon = Math.max(epsilon * 0.5, epsilonMin); // 快速降低 epsilon，减少探索
+    epsilon = Math.max(epsilon * 0.9, epsilonMin); // 快速降低 epsilon，减少探索
   } else if (epsilon > epsilonMin) {
       epsilon *= epsilonDecay; // 正常衰减
   }
