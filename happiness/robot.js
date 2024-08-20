@@ -1,94 +1,54 @@
-
 class Robot {
-  constructor(x, y, radius) {
-    this.center = createVector(x, y); 
-    this.radius = radius; 
-    this.angle = random(TWO_PI); 
-    this.velocity = createVector(random(-1, 1), random(-1, 1));
-    this.position = createVector(x + radius * cos(this.angle), y + radius * sin(this.angle));
-    this.pauseProbability = 0.001; 
-    this.moving = true; 
+    constructor(x, y, radius) {
+      this.center = createVector(x, y); 
+      this.radius = radius; 
+      this.angle = random(TWO_PI); 
+      this.amplitude = random(10, 20); // 正弦扰动的幅度
+      this.frequency = random(1, 3);   // 正弦扰动的频率
+      this.velocity = createVector(random(-1, 1), random(-1, 1));
+      this.position = createVector(x + radius * cos(this.angle), y + radius * sin(this.angle));
+      this.moving = true; 
+    }
+  
+    // Update the position of the robot to follow a circular path with a sinusoidal perturbation
+    update(params, robots) {
+      // 更新角度，使其沿圆形轨迹运动
+      let speed = 0.02 * (params.P2 || 1); // 使用P2控制速度
+      speed = constrain(speed, 0.01, 0.05); // 限制速度范围
+      this.angle += speed;
+  
+      // 应用正弦扰动到机器人位置
+      let xOffset = this.amplitude * cos(this.frequency * this.angle);
+      let yOffset = this.amplitude * sin(this.frequency * this.angle);
+  
+      // P6 - 图形形成 (Figure Formation)
+      if (params.P6) {
+        xOffset *= params.P6;
+        yOffset *= params.P6;
+      }
+  
+      // 限制正弦扰动的最大幅度
+      xOffset = constrain(xOffset, -this.radius / 2, this.radius / 2);
+      yOffset = constrain(yOffset, -this.radius / 2, this.radius / 2);
+  
+      // 计算机器人在新角度下的目标位置
+      let targetX = this.center.x + (this.radius + xOffset) * cos(this.angle);
+      let targetY = this.center.y + (this.radius + yOffset) * sin(this.angle);
+  
+      // P3 - 时间同步性 (Temporal Synchronicity)
+      let lerpFactor = 0.1 * (params.P3 || 1);
+      lerpFactor = constrain(lerpFactor, 0.05, 0.2); // 限制平滑度范围
+      this.position.lerp(createVector(targetX, targetY), lerpFactor);
+  
+      // 确保机器人在画布内移动
+      if (this.position.x > width) this.position.x = width - 10;
+      if (this.position.x < 0) this.position.x = 10;
+      if (this.position.y > height) this.position.y = height - 10;
+      if (this.position.y < 0) this.position.y = 10;
+    }
+  
+    display() {
+      ellipse(this.position.x, this.position.y, 10, 10);
+    }
   }
-
-  // Update the position of the robot based on swarm parameters P1 to P6
-  update(params, robots) {
-    // Calculate the center of the swarm
-    let centerX = 0;
-    let centerY = 0;
-    robots.forEach(robot => {
-        centerX += robot.position.x;
-        centerY += robot.position.y;
-    });
-    centerX /= robots.length;
-    centerY /= robots.length;
-
-    // Calculate average distance to other robots
-    let averageDistance = 0;
-    robots.forEach(robot => {
-        let dist = p5.Vector.dist(this.position, robot.position);
-        averageDistance += dist;
-    });
-    averageDistance /= robots.length;
-
-    // Adjust velocity based on P1 - Inter-Robot Distance
-    if (averageDistance > params.P1) {
-        this.velocity.setMag(this.velocity.mag() * 0.9); // Move closer
-    } else {
-        this.velocity.setMag(this.velocity.mag() * 1.1); // Move apart
-    }
-
-    // P2 - Spatial Synchronicity & P3 - Temporal Synchronicity
-    if (params.P2 > 0.5 || params.P3 > 0.5) {
-        let avgVelX = 0;
-        let avgVelY = 0;
-        robots.forEach(robot => {
-            avgVelX += robot.velocity.x;
-            avgVelY += robot.velocity.y;
-        });
-        avgVelX /= robots.length;
-        avgVelY /= robots.length;
-        this.velocity.lerp(new p5.Vector(avgVelX, avgVelY), 0.1 * params.P2);
-    } else {
-        // Optionally add different behavior when synchronicity is low
-        this.velocity.rotate(random(-0.1, 0.1)); // Random small rotation
-    }
-
-    // P4 - Aggregation Tendency
-    if (params.P4 > 0) {
-        let centerVector = createVector(centerX, centerY);
-        let directionToCenter = p5.Vector.sub(centerVector, this.position);
-        this.velocity.add(directionToCenter.setMag(0.05 * params.P4));
-    } else {
-        // Move slightly away from the center or other custom behavior
-        let awayFromCenter = p5.Vector.sub(this.position, createVector(centerX, centerY));
-        this.velocity.add(awayFromCenter.setMag(0.02 * (1 - params.P4))); // Weaker influence
-    }
-
-    // P5 - Leadership Tendency
-    if (this.isLeader && params.P5 > 0.5) {
-        this.velocity.rotate(random(-0.05, 0.05)); // Leaders might make more pronounced movements
-    } else if (!this.isLeader && params.P5 <= 0.5) {
-        // Non-leaders or low leadership influence
-        this.velocity.rotate(random(-0.02, 0.02)); // Smaller random adjustments
-    }
-
-    // P6 - Figure Formation
-    if (params.P6 > 0.5) {
-        this.velocity.rotate(0.1 * (params.P6 - 0.5)); // Rotate velocity for formation
-    } else {
-        // Simpler or no special formation
-        this.velocity.rotate(-0.1 * (0.5 - params.P6)); // Opposite small adjustment
-    }
-
-    // Apply the velocity to the position and ensure robots stay within bounds
-    this.position.add(this.velocity);
-    if (this.position.x > width) this.position.x = 0;
-    if (this.position.x < 0) this.position.x = width;
-    if (this.position.y > height) this.position.y = 0;
-    if (this.position.y < 0) this.position.y = height;
-  }
-
-  display() {
-    ellipse(this.position.x, this.position.y, 10, 10);
-  }
-}
+  
