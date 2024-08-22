@@ -1,108 +1,240 @@
 // scripts/main.js
 
 function setup() {
-  createCanvas(800, 600);
+  createCanvas(800, 1000); // 调整画布的高度以适应折线图区域
 
   params = initialParams();
   initializeSwarm();
 
   feedbackSlider = createSlider(0, 100, 50);
-  feedbackSlider.position(10, height + 20);
+  feedbackSlider.position(10, 620); // 调整滑块的位置，以适应新的画布高度
   feedbackSlider.style('width', '780px');
 
   let feedbackLabel = createDiv('Feedback: How sad is this representation?');
-  feedbackLabel.position(10, height - 30);
+  feedbackLabel.position(10, 600);
 
-  // Create a div to display the slider's value
   let sliderValueDisplay = createDiv(`Value: ${feedbackSlider.value()}`);
-  sliderValueDisplay.position(10, height + 40);
+  sliderValueDisplay.position(10, 640);
 
-  // Update the value display when the slider is moved
   feedbackSlider.input(() => {
     sliderValueDisplay.html(`Value: ${feedbackSlider.value()}`);
   });
 
   let submitButton = createButton('Submit Feedback');
-  submitButton.position(10, height + 60);
+  submitButton.position(10, 660);
   submitButton.mousePressed(submitFeedback);
 
   cycleDisplay = createDiv('Training Cycle: 0');
-  cycleDisplay.position(10, height + 100);
+  cycleDisplay.position(10, 680);
 
   stateDisplay = createDiv('State Parameters: ');
-  stateDisplay.position(10, height + 140);
+  stateDisplay.position(10, 700);
 
   state = [params.P1, params.P2, params.P3, params.P4, params.P5, params.P6];
 
   console.log('Initial Parameters:', params);
 }
 
-
 function draw() {
   background(220);
 
+  // 在画布上半部分可视化机器人
   for (let robot of robots) {
     robot.update(params, robots);
+    fill(0); // 保持机器人颜色为黑色
     robot.display();
   }
 
+  // 显示训练周期和状态参数
   cycleDisplay.html(`Training Cycle: ${cycleCount}`);
   stateDisplay.html(`State Parameters: P1=${params.P1.toFixed(2)}, P2=${params.P2.toFixed(2)}, P3=${params.P3.toFixed(2)}, P4=${params.P4.toFixed(2)}, P5=${params.P5.toFixed(2)}, P6=${params.P6.toFixed(2)}`);
+
+  // 在画布的底部部分可视化反馈和参数变化
+  visualizeFeedbackAndParams();
 }
+
+function visualizeFeedbackAndParams() {
+  let chartHeight = 250; // 折线图的高度
+  let chartTop = 750; // 折线图开始绘制的顶部位置，在画布底部
+  let scaleX = 5; // 时间轴的比例因子（x轴）
+  let scaleY = 1; // 参数值的比例因子（y轴）
+
+  // 绘制反馈值的折线图，使用黑色
+  stroke(0);
+  noFill();
+  beginShape();
+  for (let i = 0; i < feedbackHistory.length; i++) {
+    vertex(i * scaleX, chartTop + chartHeight - feedbackHistory[i] * 2); // 反馈值（缩放）
+  }
+  endShape();
+
+  // 绘制参数的折线图，使用不同颜色
+  let colors = ['red', 'green', 'blue', 'orange', 'purple', 'cyan'];
+  for (let j = 0; j < 6; j++) {
+    stroke(colors[j]);
+    beginShape();
+    for (let i = 0; i < paramsHistory.length; i++) {
+      vertex(i * scaleX, chartTop + chartHeight - (paramsHistory[i][`P${j + 1}`] * scaleY)); // 参数值（缩放）
+    }
+    endShape();
+  }
+}
+
 
 // Set up the neural network model using TensorFlow.js
 const model = tf.sequential();
 model.add(tf.layers.dense({ units: 64, inputShape: [6], activation: 'relu' }));
-model.add(tf.layers.dropout({ rate: 0.2 })); // Dropout层，防止过拟合
+model.add(tf.layers.dropout({ rate: 0.2 }));
 model.add(tf.layers.dense({ units: 64, activation: 'relu' }));
-model.add(tf.layers.dropout({ rate: 0.2 })); // 再次添加Dropout层
+model.add(tf.layers.dropout({ rate: 0.2 }));
 model.add(tf.layers.dense({ units: 32, activation: 'relu' }));
 model.add(tf.layers.dense({ units: 6, activation: 'linear' }));
-model.compile({ optimizer: tf.train.adam(0.001), loss: 'meanSquaredError' }); // 将学习率设置为0.001
+model.compile({ optimizer: tf.train.adam(0.001), loss: 'meanSquaredError' });
 
+// Target network
+const targetModel = tf.sequential();
+targetModel.add(tf.layers.dense({ units: 64, inputShape: [6], activation: 'relu' }));
+targetModel.add(tf.layers.dropout({ rate: 0.2 }));
+targetModel.add(tf.layers.dense({ units: 64, activation: 'relu' }));
+targetModel.add(tf.layers.dropout({ rate: 0.2 }));
+targetModel.add(tf.layers.dense({ units: 32, activation: 'relu' }));
+targetModel.add(tf.layers.dense({ units: 6, activation: 'linear' }));
+targetModel.compile({ optimizer: tf.train.adam(0.001), loss: 'meanSquaredError' });
 
-let epsilon = 1.0; // 初始ε值
-let epsilonMin = 0.01; // ε的最小值
-let epsilonDecay = 0.99; // 每个训练周期ε的衰减系数
+// Copy weights to target model
+function updateTargetModel() {
+  targetModel.setWeights(model.getWeights());
+}
+
+// Replay memory buffer
+let replayBuffer = [];
+const bufferSize = 500; // Adjust buffer size as needed
+const batchSize = 32;
+
+let epsilon = 1.0;
+let epsilonMin = 0.01;
+let epsilonDecay = 0.99;
 
 function chooseAction(state) {
   if (Math.random() < epsilon) {
-    // 探索：选择随机动作
-    return Array.from({ length: 6 }, () => Math.random() * 100); // 假设动作的范围是0到100
+    return Array.from({ length: 6 }, () => Math.random() * 100);
   } else {
-    // 利用：选择最优动作
     return tf.tidy(() => {
-      const input = tf.tensor2d([state]); // Convert the state to a 2D tensor
-      const prediction = model.predict(input); // Predict the Q-values for the given state
-      const action = prediction.dataSync(); // Return the predicted values as a JavaScript array
-      console.log('Chosen action based on current state:', action);
+      const input = tf.tensor2d([state]);
+      const prediction = model.predict(input);
+      const action = prediction.dataSync();
       return action;
     });
   }
 }
 
-function trainModel(state, action, reward, nextState) {
-  const target = reward + 0.95 * Math.max(...chooseAction(nextState)); // Q-learning update rule
-  const targetVector = chooseAction(state); // Predict the current Q-values
-  targetVector[targetVector.indexOf(Math.max(...targetVector))] = target; // Update the Q-value for the chosen action with the target value
+function storeExperience(state, action, reward, nextState) {
+  if (replayBuffer.length >= bufferSize) {
+    replayBuffer.shift(); // Remove the oldest experience if buffer is full
+  }
+  replayBuffer.push({ state, action, reward, nextState });
+}
 
-  const input = tf.tensor2d([state]);
-  const targetTensor = tf.tensor2d([targetVector]);
+function trainModel() {
+  if (replayBuffer.length < batchSize) {
+    return;
+  }
 
-  model.fit(input, targetTensor, { epochs: 1 }).then(() => {
-    input.dispose(); // Dispose of the input tensor to free memory
-    targetTensor.dispose(); // Dispose of the target tensor to free memory
-    console.log('Model trained with state:', state, 'action:', action, 'reward:', reward, 'next state:', nextState);
+  const batch = [];
+  for (let i = 0; i < batchSize; i++) {
+    const index = Math.floor(Math.random() * replayBuffer.length);
+    batch.push(replayBuffer[index]);
+  }
+
+  const states = batch.map(e => e.state);
+  const actions = batch.map(e => e.action);
+  const rewards = batch.map(e => e.reward);
+  const nextStates = batch.map(e => e.nextState);
+
+  tf.tidy(() => {
+    const stateTensor = tf.tensor2d(states);
+    const actionTensor = tf.tensor2d(actions);
+    const rewardTensor = tf.tensor2d(rewards, [batchSize, 1]);
+    const nextStateTensor = tf.tensor2d(nextStates);
+
+    const predictedQValues = model.predict(stateTensor);
+    const nextQValues = targetModel.predict(nextStateTensor);
+
+    const maxNextQValues = nextQValues.max(1).reshape([batchSize, 1]);
+
+    const targetQValues = rewardTensor.add(maxNextQValues.mul(0.95));
+
+    const loss = model.fit(stateTensor, targetQValues, { epochs: 1 });
+
+    stateTensor.dispose();
+    actionTensor.dispose();
+    rewardTensor.dispose();
+    nextStateTensor.dispose();
   });
 
-  // 衰减ε值
-  if (reward < 50 && epsilon > epsilonMin) {
+  // if (epsilon > epsilonMin) {
+  //   epsilon *= epsilonDecay;
+  // }
+  if (rewards < 50 && epsilon > epsilonMin) {
     epsilon *= (epsilonDecay * 0.6); // 更快速地减少 epsilon
-  } else if (reward >= 70) { // 高分反馈
+  } else if (rewards >= 70) { // 高分反馈
     epsilon = Math.max(epsilon * 0.9, epsilonMin); // 快速降低 epsilon，减少探索
   } else if (epsilon > epsilonMin) {
       epsilon *= epsilonDecay; // 正常衰减
   }
 
+  console.log('Model trained on a batch of experiences');
 }
 
+let feedbackHistory = [];
+let paramsHistory = [];
+
+function submitFeedback() {
+    if (cycleCount < trainingCycles) {
+        let reward = getUserFeedback();
+        let action = chooseAction(state);
+        let adjustmentFactor = (reward / 100) * 2;
+
+        let nextState = action.map((value, index) => {
+            if (reward >= 50) {
+                return state[index] + adjustmentFactor * (value - state[index]);
+            } else {
+                return state[index] - adjustmentFactor * (state[index] - value);
+            }
+        });
+
+        if (reward < 30) {
+            nextState = nextState.map(value => value + (Math.random() - 0.5) * 0.1);
+        }
+
+        if (nextState.some(isNaN)) {
+            nextState = [params.P1, params.P2, params.P3, params.P4, params.P5, params.P6];
+        }
+
+        storeExperience(state, action, reward, nextState);
+        trainModel();
+
+        state = nextState;
+        params = {
+            P1: state[0],
+            P2: state[1],
+            P3: state[2],
+            P4: state[3],
+            P5: state[4],
+            P6: state[5]
+        };
+
+        // Record feedback and parameters
+        feedbackHistory.push(reward);
+        paramsHistory.push(Object.assign({}, params));
+
+        initializeSwarm();
+
+        cycleCount++;
+        cycleDisplay.html(`Training Cycle: ${cycleCount}`);
+
+        if (cycleCount % 10 === 0) {
+            updateTargetModel();
+        }
+    }
+}
