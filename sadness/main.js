@@ -1,34 +1,34 @@
 // scripts/main.js
 
 function setup() {
-  createCanvas(800, 1000); // 调整画布的高度以适应折线图区域
+  createCanvas(800, 600);
 
   params = initialParams();
   initializeSwarm();
 
   feedbackSlider = createSlider(0, 100, 50);
-  feedbackSlider.position(10, 620); // 调整滑块的位置，以适应新的画布高度
+  feedbackSlider.position(10, height + 20);
   feedbackSlider.style('width', '780px');
 
   let feedbackLabel = createDiv('Feedback: How sad is this representation?');
-  feedbackLabel.position(10, 600);
+  feedbackLabel.position(10, height - 30);
 
   let sliderValueDisplay = createDiv(`Value: ${feedbackSlider.value()}`);
-  sliderValueDisplay.position(10, 640);
+  sliderValueDisplay.position(10, height + 40);
 
   feedbackSlider.input(() => {
     sliderValueDisplay.html(`Value: ${feedbackSlider.value()}`);
   });
 
   let submitButton = createButton('Submit Feedback');
-  submitButton.position(10, 660);
+  submitButton.position(10, height + 60);
   submitButton.mousePressed(submitFeedback);
 
   cycleDisplay = createDiv('Training Cycle: 0');
-  cycleDisplay.position(10, 680);
+  cycleDisplay.position(10, height + 100);
 
   stateDisplay = createDiv('State Parameters: ');
-  stateDisplay.position(10, 700);
+  stateDisplay.position(10, height + 140);
 
   state = [params.P1, params.P2, params.P3, params.P4, params.P5, params.P6];
 
@@ -38,48 +38,14 @@ function setup() {
 function draw() {
   background(220);
 
-  // 在画布上半部分可视化机器人
   for (let robot of robots) {
     robot.update(params, robots);
-    fill(0); // 保持机器人颜色为黑色
     robot.display();
   }
 
-  // 显示训练周期和状态参数
   cycleDisplay.html(`Training Cycle: ${cycleCount}`);
   stateDisplay.html(`State Parameters: P1=${params.P1.toFixed(2)}, P2=${params.P2.toFixed(2)}, P3=${params.P3.toFixed(2)}, P4=${params.P4.toFixed(2)}, P5=${params.P5.toFixed(2)}, P6=${params.P6.toFixed(2)}`);
-
-  // 在画布的底部部分可视化反馈和参数变化
-  visualizeFeedbackAndParams();
 }
-
-function visualizeFeedbackAndParams() {
-  let chartHeight = 250; // 折线图的高度
-  let chartTop = 750; // 折线图开始绘制的顶部位置，在画布底部
-  let scaleX = 5; // 时间轴的比例因子（x轴）
-  let scaleY = 1; // 参数值的比例因子（y轴）
-
-  // 绘制反馈值的折线图，使用黑色
-  stroke(0);
-  noFill();
-  beginShape();
-  for (let i = 0; i < feedbackHistory.length; i++) {
-    vertex(i * scaleX, chartTop + chartHeight - feedbackHistory[i] * 2); // 反馈值（缩放）
-  }
-  endShape();
-
-  // 绘制参数的折线图，使用不同颜色
-  let colors = ['red', 'green', 'blue', 'orange', 'purple', 'cyan'];
-  for (let j = 0; j < 6; j++) {
-    stroke(colors[j]);
-    beginShape();
-    for (let i = 0; i < paramsHistory.length; i++) {
-      vertex(i * scaleX, chartTop + chartHeight - (paramsHistory[i][`P${j + 1}`] * scaleY)); // 参数值（缩放）
-    }
-    endShape();
-  }
-}
-
 
 // Set up the neural network model using TensorFlow.js
 const model = tf.sequential();
