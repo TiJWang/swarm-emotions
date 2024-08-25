@@ -37,6 +37,15 @@ class Robot {
         this.velocity.setMag(this.velocity.mag() * 1.1); // Move apart
     }
 
+    if (params.P2 < 0.3) {
+        this.velocity.rotate(random(-0.1, 0.1)); // 较大的随机旋转
+    }
+
+    if (params.P3 < 0.3) {
+        this.velocity.rotate(random(-0.2, 0.2)); // 增加旋转的随机性
+    }
+
+
     // P2 - Spatial Synchronicity & P3 - Temporal Synchronicity
     if (params.P2 > 0.5 || params.P3 > 0.5) {
         let avgVelX = 0;
