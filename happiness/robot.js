@@ -84,4 +84,3 @@ class Robot {
       ellipse(this.position.x, this.position.y, 10, 10);
     }
   }
-  
