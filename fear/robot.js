@@ -14,7 +14,7 @@ class Robot {
     // Update the position of the robot to follow a slow, angular movement pattern
     update(params, robots) {
       let speed = 0.01 * (params.P2 || 1); // 使用P2控制速度，速度更慢
-      speed = constrain(speed, 0.005, 0.02); // 限制速度范围，更加缓慢
+      // speed = constrain(speed, 0.005, 0.02); // 限制速度范围，更加缓慢
       this.angle += speed;
   
       let xOffset = this.amplitude * cos(this.frequency * this.angle);
