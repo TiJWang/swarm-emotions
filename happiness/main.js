@@ -1,6 +1,5 @@
 // main.js
 
-// Global definitions for the canvas and simulation
 let model, targetModel;
 let replayMemory = [];
 const replayMemorySize = 10000;
@@ -9,10 +8,6 @@ const discountFactor = 0.95;
 let epsilon = 1.0;
 const epsilonMin = 0.01;
 const epsilonDecay = 0.995;
-// let robots, params, state;
-// let feedbackSlider, cycleDisplay, stateDisplay;
-// let cycleCount = 0;
-// const trainingCycles = 10000;
 
 function setup() {
   createCanvas(800, 600);
@@ -111,6 +106,3 @@ function updateTargetModel() {
   targetModel.setWeights(model.getWeights());
 }
 
-// function getUserFeedback() {
-//   return feedbackSlider.value();
-// }
