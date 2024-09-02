@@ -13,7 +13,7 @@ class Robot {
 
     update(params, robots) {
       let speed = 0.02 * (params.P2 || 1); // p2 control speed
-      speed = constrain(speed, 0.01, 0.05); // limit speed range
+      // speed = constrain(speed, 0.01, 0.05); // limit speed range
       this.angle += speed;
   
       let xOffset = this.amplitude * cos(this.frequency * this.angle);
