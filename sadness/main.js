@@ -4,7 +4,7 @@
 let model, targetModel;
 let replayMemory = [];
 const replayMemorySize = 10000;
-const batch_size = 14;
+const batch_size = 10;
 const discountFactor = 0.95;
 let epsilon = 1.0;
 const epsilonMin = 0.01;

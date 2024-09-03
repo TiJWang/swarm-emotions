@@ -3,7 +3,7 @@ class Robot {
         this.center = createVector(x, y); 
         this.radius = radius; 
         this.angle = random(TWO_PI); 
-        this.amplitude = random(2, 5);
+        this.amplitude = random(5, 10);
         this.frequency = random(2, 4);
         this.velocity = createVector(random(-1, 1), random(-1, 1));
         this.position = createVector(x + radius * cos(this.angle), y + radius * sin(this.angle));
