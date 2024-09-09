@@ -14,6 +14,7 @@ class Robot {
     update(params, robots) {
         let speed = 0.02 * (params.P2 || 1);
         // speed = constrain(speed, 0.02, 0.05);
+        console.log(this.velocity);
   
         this.angle += speed;
   

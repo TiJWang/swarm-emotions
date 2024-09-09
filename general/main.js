@@ -18,8 +18,8 @@ function setup() {
   feedbackSlider.position(10, height + 20);
   feedbackSlider.style('width', '780px');
 
-  let feedbackLabel = createDiv('Feedback: How sad is this representation?');
-  feedbackLabel.position(10, height - 30);
+  // let feedbackLabel = createDiv('Feedback: How sad is this representation?');
+  // feedbackLabel.position(10, height - 30);
 
   let sliderValueDisplay = createDiv(`Value: ${feedbackSlider.value()}`);
   sliderValueDisplay.position(10, height + 40);
